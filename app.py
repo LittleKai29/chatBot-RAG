@@ -32,27 +32,29 @@ def register(username, password, confirm_password):
 def main():
     st.title("Đăng nhập và Đăng ký")
 
-    menu = ["Đăng nhập", "Đăng ký"]
-    choice = st.sidebar.selectbox("Menu", menu)
+    # Mặc định hiển thị màn hình đăng nhập
+    st.subheader("Đăng nhập")
+    username = st.text_input("Tên đăng nhập")
+    password = st.text_input("Mật khẩu", type="password")
 
-    if choice == "Đăng nhập":
-        st.subheader("Đăng nhập")
-        username = st.text_input("Tên đăng nhập")
-        password = st.text_input("Mật khẩu", type="password")
+    if st.button("Đăng nhập"):
+        if login(username, password):
+            st.write(f"Chào mừng {username}!")
 
-        if st.button("Đăng nhập"):
-            if login(username, password):
-                st.write(f"Chào mừng {username}!")
+    # Nút chuyển sang màn hình đăng ký
+    if st.button("Đăng ký"):
+        st.session_state["show_register"] = True
 
-    elif choice == "Đăng ký":
+    # Kiểm tra nếu người dùng bấm nút đăng ký
+    if "show_register" in st.session_state and st.session_state["show_register"]:
         st.subheader("Đăng ký")
         new_username = st.text_input("Tên đăng nhập mới")
         new_password = st.text_input("Mật khẩu mới", type="password")
         confirm_password = st.text_input("Nhập lại mật khẩu", type="password")
 
-        if st.button("Đăng ký"):
+        if st.button("Đăng ký tài khoản"):
             if register(new_username, new_password, confirm_password):
-                st.write(f"Chào mừng {new_username}!")
+                st.session_state["show_register"] = False  # Quay lại màn hình đăng nhập sau khi đăng ký thành công
 
 if __name__ == "__main__":
     main()
