@@ -32,21 +32,28 @@ def register(username, password, confirm_password):
 def main():
     st.title("Đăng nhập và Đăng ký")
 
-    # Mặc định hiển thị màn hình đăng nhập
-    st.subheader("Đăng nhập")
-    username = st.text_input("Tên đăng nhập")
-    password = st.text_input("Mật khẩu", type="password")
+    # Kiểm tra trạng thái hiện tại (đăng nhập hoặc đăng ký)
+    if "show_register" not in st.session_state:
+        st.session_state["show_register"] = False
 
-    if st.button("Đăng nhập"):
-        if login(username, password):
-            st.write(f"Chào mừng {username}!")
+    # Hiển thị màn hình đăng nhập hoặc đăng ký
+    if not st.session_state["show_register"]:
+        # Màn hình đăng nhập
+        st.subheader("Đăng nhập")
+        username = st.text_input("Tên đăng nhập")
+        password = st.text_input("Mật khẩu", type="password")
 
-    # Nút chuyển sang màn hình đăng ký
-    if st.button("Đăng ký"):
-        st.session_state["show_register"] = True
+        col1, col2 = st.columns(2)  # Tạo 2 cột để đặt nút đăng nhập và đăng ký
+        with col1:
+            if st.button("Đăng nhập"):
+                if login(username, password):
+                    st.write(f"Chào mừng {username}!")
+        with col2:
+            if st.button("Đăng ký"):
+                st.session_state["show_register"] = True  # Chuyển sang màn hình đăng ký
 
-    # Kiểm tra nếu người dùng bấm nút đăng ký
-    if "show_register" in st.session_state and st.session_state["show_register"]:
+    else:
+        # Màn hình đăng ký
         st.subheader("Đăng ký")
         new_username = st.text_input("Tên đăng nhập mới")
         new_password = st.text_input("Mật khẩu mới", type="password")
