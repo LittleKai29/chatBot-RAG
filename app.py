@@ -1,111 +1,58 @@
 import streamlit as st
-import pymongo
-import bcrypt
+from pymongo import MongoClient
 
-# Kết nối MongoDB
-def get_db():
-    client = pymongo.MongoClient("mongodb://localhost:27017/")
-    return client["chatbot_db"]
+# Kết nối với MongoDB
+client = MongoClient("mongodb://localhost:27017/")
+db = client["user_database"]
+users_collection = db["users"]
 
-db = get_db()
-users_col = db["users"]
-chats_col = db["chats"]
-
-# Hash mật khẩu
-def hash_password(password):
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-# Kiểm tra mật khẩu
-def check_password(password, hashed):
-    return bcrypt.checkpw(password.encode(), hashed.encode())
-
-# Đăng ký tài khoản
-def register(username, password):
-    if users_col.find_one({"username": username}):
-        st.error("Tên đăng nhập đã tồn tại!")
-        return
-
-    users_col.insert_one({"username": username, "password_hash": hash_password(password)})
-    st.success("Đăng ký thành công!")
-
-# Đăng nhập
+# Hàm đăng nhập
 def login(username, password):
-    user = users_col.find_one({"username": username})
-    if user and check_password(password, user["password_hash"]):
-        st.session_state["logged_in"] = True
-        st.session_state["username"] = username
-        st.experimental_rerun()
+    user = users_collection.find_one({"username": username, "password": password})
+    if user:
+        st.success("Đăng nhập thành công!")
+        return True
     else:
-        st.error("Sai tên đăng nhập hoặc mật khẩu!")
+        st.error("Tên đăng nhập hoặc mật khẩu không đúng.")
+        return False
 
-# Lấy lịch sử chat
-def get_chat_history(username):
-    chat = chats_col.find_one({"username": username})
-    return chat["history"] if chat else []
+# Hàm đăng ký
+def register(username, password, confirm_password):
+    if password != confirm_password:
+        st.error("Mật khẩu nhập lại không khớp.")
+        return False
+    if users_collection.find_one({"username": username}):
+        st.error("Tên đăng nhập đã tồn tại.")
+        return False
+    users_collection.insert_one({"username": username, "password": password})
+    st.success("Đăng ký thành công!")
+    return True
 
-# Lưu chat
-def save_chat(username, message, response):
-    chat = chats_col.find_one({"username": username})
-    if chat:
-        chats_col.update_one({"username": username}, {"$push": {"history": {"message": message, "response": response}}})
-    else:
-        chats_col.insert_one({"username": username, "history": [{"message": message, "response": response}]})
+# Giao diện chính
+def main():
+    st.title("Đăng nhập và Đăng ký")
 
-# Giao diện chatbot
-def chatbot_ui():
-    st.title("Chatbot")
+    menu = ["Đăng nhập", "Đăng ký"]
+    choice = st.sidebar.selectbox("Menu", menu)
 
-    # Hiển thị lịch sử chat
-    st.subheader("Lịch sử chat")
-    chats = get_chat_history(st.session_state["username"])
-    for msg in chats:
-        st.text_area("Bạn:", value=msg["message"], height=50, disabled=True)
-        st.text_area("Chatbot:", value=msg["response"], height=50, disabled=True)
-
-    # Ô nhập tin nhắn
-    st.subheader("Nhập tin nhắn")
-    user_input = st.text_input("Nhập tin nhắn của bạn")
-
-    if st.button("Gửi"):
-        if user_input:
-            bot_response = f"Bạn vừa nói: {user_input}"  # TODO: Thay bằng AI thật
-            save_chat(st.session_state["username"], user_input, bot_response)
-            st.experimental_rerun()
-
-    # Đăng xuất
-    if st.sidebar.button("Đăng xuất"):
-        st.session_state["logged_in"] = False
-        st.session_state.pop("username", None)
-        st.experimental_rerun()
-
-# Giao diện đăng nhập / đăng ký
-def login_ui():
-    st.title("Đăng nhập / Đăng ký")
-
-    with st.form("login_form"):
+    if choice == "Đăng nhập":
+        st.subheader("Đăng nhập")
         username = st.text_input("Tên đăng nhập")
         password = st.text_input("Mật khẩu", type="password")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            register_button = st.form_submit_button("Đăng ký")
-        with col2:
-            login_button = st.form_submit_button("Đăng nhập")
+        if st.button("Đăng nhập"):
+            if login(username, password):
+                st.write(f"Chào mừng {username}!")
 
-    if register_button:
-        if username and password:
-            register(username, password)
-        else:
-            st.warning("Vui lòng nhập đủ thông tin!")
+    elif choice == "Đăng ký":
+        st.subheader("Đăng ký")
+        new_username = st.text_input("Tên đăng nhập mới")
+        new_password = st.text_input("Mật khẩu mới", type="password")
+        confirm_password = st.text_input("Nhập lại mật khẩu", type="password")
 
-    if login_button:
-        if username and password:
-            login(username, password)
-        else:
-            st.warning("Vui lòng nhập đủ thông tin!")
+        if st.button("Đăng ký"):
+            if register(new_username, new_password, confirm_password):
+                st.write(f"Chào mừng {new_username}!")
 
-# Điều hướng giữa đăng nhập và chatbot
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    login_ui()
-else:
-    chatbot_ui()
+if __name__ == "__main__":
+    main()
