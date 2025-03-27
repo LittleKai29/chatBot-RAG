@@ -48,8 +48,13 @@ def create_new_chat(username, title):
     chats_col.insert_one({"username": username, "chat_id": chat_id, "title": title, "history": []})
     return chat_id
 
-def save_chat(chat_id, message, response):
-    chats_col.update_one({"chat_id": chat_id}, {"$push": {"history": {"message": message, "response": response}}})
+def save_chat(chat_id, message, role):
+    """Lưu tin nhắn vào lịch sử hội thoại với role (user hoặc ai)."""
+    chats_col.update_one(
+        {"chat_id": chat_id},
+        {"$push": {"history": {"role": role, "message": message}}},
+        upsert=True
+    )
 
 # UI Handling
 if "page" not in st.session_state:
@@ -96,6 +101,20 @@ elif st.session_state.page == "register":
             st.session_state.page = "login"
             st.rerun()
 
+def send_message():
+    if "chat_id" in st.session_state:
+        chat_id = st.session_state["chat_id"]
+        user_input = st.session_state["user_input"].strip()
+        if user_input:
+            bot_response = f"Bạn vừa nói: {user_input}"
+            save_chat(chat_id, user_input, "user")
+            save_chat(chat_id, bot_response, "ai")
+
+            # Xóa nội dung input sau khi gửi
+            st.session_state["user_input"] = ""
+            st.rerun()
+
+
 # Chatbot UI
 def chatbot_ui():
     st.sidebar.title("Lịch sử trò chuyện")
@@ -121,16 +140,16 @@ def chatbot_ui():
         chats = get_chat_history(chat_id)
 
         for msg in chats:
-            st.markdown(f"**Bạn:** {msg['message']}")
-            st.markdown(f"**Chatbot:** {msg['response']}")
+            if msg["role"] == "user":
+                st.markdown(f"**Bạn:** {msg['message']}")
+            elif msg["role"] == "ai":
+                st.markdown(f"**Chatbot:** {msg['message']}")
             st.write("---")
 
-        user_input = st.text_input("Nhập tin nhắn của bạn")
+        user_input = st.text_input("Nhập tin nhắn...", key="user_input", on_change=send_message)
         if st.button("Gửi"):
-            if user_input:
-                bot_response = f"Bạn vừa nói: {user_input}"  # Placeholder chatbot response
-                save_chat(chat_id, user_input, bot_response)
-                st.rerun()
+            send_message()
+
 
     # Tạo khoảng trống để đẩy nút đăng xuất xuống dưới cùng
     st.sidebar.markdown("<br>" * 20, unsafe_allow_html=True)
