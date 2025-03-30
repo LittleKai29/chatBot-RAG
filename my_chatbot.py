@@ -10,7 +10,6 @@ from typing_extensions import TypedDict
 from typing import Annotated
 from langgraph.graph.message import add_messages
 
-
 # ================== Elasticsearch Config ===================
 class ElasticsearchConfig:
     USERNAME = "elastic"
@@ -46,23 +45,30 @@ class LLMService:
 
             Ngữ cảnh : {context}
 
-            Đưa ra câu trả lời bằng tiếng Việt hoàn toàn không được dính một tí tiếng Anh nào
+            Đưa ra câu trả lời bằng tiếng Việt không dính tí tiếng Anh nao
             """
         )
         return self.llm.invoke(prompt.format(question=question, context=context))
 
+# ================== Singleton Metaclass ===================
+class SingletonMeta(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
 # ================== BotLLM ===================
-class BotLLM:
+class BotLLM(metaclass=SingletonMeta):
     class State(TypedDict):
         messages: Annotated[list, add_messages]
         question: str
         context: str
 
     def __init__(self):
-        # Embedding
         self.embedding_model = EmbeddingModel()
 
-        # Retriever
         self.retriever = ElasticsearchRetriever.from_es_params(
             index_name=ElasticsearchConfig.INDEX,
             body_func=self._hybrid_query,
@@ -70,13 +76,9 @@ class BotLLM:
             url=ElasticsearchConfig.URL
         )
 
-        # LLM
         self.llm_service = LLMService()
 
-        # Memory
         self.memory = MemorySaver()
-
-        # Workflow
         self.workflow = StateGraph(state_schema=self.State)
         self._build_workflow()
         self.app = self.workflow.compile(checkpointer=self.memory)
