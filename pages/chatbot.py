@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from connection import get_chat_list, get_chat_history, create_new_chat, save_chat
 from my_chatbot import BotLLM
@@ -5,16 +6,33 @@ from my_chatbot import BotLLM
 
 bot_llm = BotLLM()
 
+
 def send_message():
     if "chat_id" in st.session_state:
         chat_id = st.session_state["chat_id"]
         user_input = st.session_state.get("user_input", "").strip()
+
         if user_input:
-            bot_response = bot_llm.get_response(user_input, thread_id=chat_id)
-            save_chat(chat_id, user_input, "user")
-            save_chat(chat_id, bot_response, "ai")
-            # Clear the input field by resetting the session state
-            st.session_state["user_input"] = ""  # This works because it's before the widget is re-rendered
+            save_chat(chat_id, user_input, "user")  # Lưu câu hỏi trước
+
+            with st.chat_message("user"):
+                st.markdown(user_input)  # Hiển thị tin nhắn của user đúng vị trí
+
+            bot_response = ""  # Chuỗi tích lũy kết quả
+            
+            with st.chat_message("ai"):
+                response_container = st.empty()  # Tạo vùng hiển thị response
+                
+                # Lấy stream từ BotLLM
+                for message_chunk, metadata in bot_llm.get_response(user_input, thread_id=chat_id):
+                    if message_chunk.content:
+                        bot_response += message_chunk.content  # Ghép chuỗi lại
+                        response_container.markdown(bot_response)  # Cập nhật UI
+                        time.sleep(0.05)  # Tạo độ trễ 0.2s
+
+            save_chat(chat_id, bot_response, "ai")  # Lưu phản hồi AI vào lịch sử
+            st.session_state["user_input"] = ""  # Xóa input field
+
 
 def chatbot_ui():
     st.sidebar.title("Lịch sử trò chuyện")

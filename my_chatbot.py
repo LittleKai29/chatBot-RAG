@@ -48,7 +48,7 @@ class LLMService:
             Đưa ra câu trả lời bằng tiếng Việt không dính tí tiếng Anh nao
             """
         )
-        return self.llm.invoke(prompt.format(question=question, context=context))
+        return self.llm.stream(prompt.format(question=question, context=context))
 
 # ================== Singleton Metaclass ===================
 class SingletonMeta(type):
@@ -104,8 +104,10 @@ class BotLLM(metaclass=SingletonMeta):
         return {"context": context}
 
     def _generate_answer(self, state: State):
-        response = self.llm_service.generate_answer(state["question"], state["context"])
-        return {"messages": [response]}
+        stream_response = self.llm_service.generate_answer(state["question"], state["context"])
+        for chunk in stream_response:
+            yield {"messages": [chunk]}
+
 
     def _build_workflow(self):
         self.workflow.add_node("retrieve_context", self._retrieve_context)
@@ -118,9 +120,11 @@ class BotLLM(metaclass=SingletonMeta):
         if not thread_id:
             thread_id = uuid.uuid4()
         config = {"configurable": {"thread_id": thread_id}}
-        result = self.app.invoke(
+
+        # Trả về stream từ app.invoke()
+        return self.app.stream(
             {"messages": user_input, "question": user_input, "context": ""},
-            config
+            config,
+            stream_mode="messages"
         )
-        message = result["messages"][-1].content if "messages" in result else "Xin lỗi, tôi chưa hiểu câu hỏi của bạn."
-        return message
+
