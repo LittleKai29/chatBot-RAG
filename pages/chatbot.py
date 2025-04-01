@@ -13,25 +13,34 @@ def send_message():
         user_input = st.session_state.get("user_input", "").strip()
 
         if user_input:
-            save_chat(chat_id, user_input, "user")  # Lưu câu hỏi trước
-
+            # 1. Hiển thị tin nhắn user trước
             with st.chat_message("user"):
-                st.markdown(user_input)  # Hiển thị tin nhắn của user đúng vị trí
-
-            bot_response = ""  # Chuỗi tích lũy kết quả
+                st.markdown(user_input)
             
-            with st.chat_message("ai"):
-                response_container = st.empty()  # Tạo vùng hiển thị response
-                
-                # Lấy stream từ BotLLM
-                for message_chunk, metadata in bot_llm.get_response(user_input, thread_id=chat_id):
-                    if message_chunk.content:
-                        bot_response += message_chunk.content  # Ghép chuỗi lại
-                        response_container.markdown(bot_response)  # Cập nhật UI
-                        time.sleep(0.05)  # Tạo độ trễ 0.2s
+            # Lưu tin nhắn user
+            save_chat(chat_id, user_input, "user")
 
-            save_chat(chat_id, bot_response, "ai")  # Lưu phản hồi AI vào lịch sử
-            st.session_state["user_input"] = ""  # Xóa input field
+            # 2. Tạo một container riêng cho bot response
+            chat_container = st.container()  # Thay st.empty() bằng container
+            
+            with chat_container:  # Đảm bảo vị trí response nằm đúng chỗ
+                with st.chat_message("ai"):
+                    message_placeholder = st.empty()
+                    bot_response = ""
+                    
+                    # Stream response
+                    for message_chunk, metadata in bot_llm.get_response(user_input, thread_id=chat_id):
+                        if message_chunk.content:
+                            bot_response += message_chunk.content
+                            message_placeholder.markdown(bot_response + "▌")
+                            time.sleep(0.08)
+                    
+                    # Hiển thị kết quả cuối cùng
+                    message_placeholder.markdown(bot_response)
+            
+            # Lưu phản hồi AI
+            save_chat(chat_id, bot_response, "ai")
+            st.session_state["user_input"] = ""
 
 
 def chatbot_ui():
@@ -56,13 +65,11 @@ def chatbot_ui():
         chat_id = st.session_state["chat_id"]
         st.subheader(f"🗨️ {selected_chat_title}")
         chats = get_chat_history(chat_id)
-
+        
+        # Hiển thị toàn bộ lịch sử dùng st.chat_message
         for msg in chats:
-            if msg["role"] == "user":
-                st.markdown(f"**Bạn:** {msg['message']}")
-            elif msg["role"] == "ai":
-                st.markdown(f"**Chatbot:** {msg['message']}")
-            st.write("---")
+            with st.chat_message(msg["role"]):  # "user" hoặc "ai"
+                st.markdown(msg['message'])
 
         # Use `key="user_input"` to bind the widget to session state
         st.text_input("Nhập tin nhắn...", key="user_input", on_change=send_message)

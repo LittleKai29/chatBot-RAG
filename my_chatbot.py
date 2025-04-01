@@ -39,7 +39,7 @@ class LLMService:
         prompt = PromptTemplate.from_template(
             """
             Bạn là một chatbot trợ giúp về ngôn ngữ lập trình Python. Hãy trả lời câu hỏi dựa theo ngữ cảnh là những câu trả lời có liên quan đến câu hỏi cộng với hiểu biết của bạn.
-            Nếu cảm thấy không chắc chắn hãy hỏi lại người dùng để làm rõ câu hỏi.
+            Nếu cảm thấy ngữ cảnh vẫn chưa phù hợp hoặc bạn chưa chắc chắn hãy hỏi lại người dùng để làm rõ câu hỏi.
 
             Câu hỏi: {question}
 
@@ -86,17 +86,17 @@ class BotLLM(metaclass=SingletonMeta):
     def _hybrid_query(self, search_query):
         vector = self.embedding_model.get_embedding(search_query)
         return {
-            "retriever": {
-                "rrf": {
-                    "retrievers": [
-                        {"standard": {"query": {"match": {ElasticsearchConfig.TEXT_FIELD: search_query}}}},
-                        {"knn": {"field": ElasticsearchConfig.DENSE_VECTOR_FIELD, "query_vector": vector, "k": 5, "num_candidates": 10}}
-                    ],
-                    "rank_constant": 60
+            "size": 1,
+            "query": {
+                "match": {
+                ElasticsearchConfig.TEXT_FIELD: {
+                    "query": search_query,
+                    "minimum_should_match": "70%"
                 }
-            },
-            "size": 1
+                }
+            }
         }
+
 
     def _retrieve_context(self, state: State):
         retrieved_docs = self.retriever.invoke(state["question"])
