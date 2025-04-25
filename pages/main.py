@@ -1,6 +1,6 @@
 import streamlit as st
-from pages.auth_pages import login_page, register_page
-from pages.chatbot import chatbot_ui
+from auth_pages import login_page, register_page
+from chatbot import chatbot_ui
 
 if "page" not in st.session_state:
     st.session_state.page = "login"
