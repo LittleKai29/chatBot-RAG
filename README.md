@@ -23,7 +23,7 @@ A Retrieval-Augmented Generation (RAG) chatbot that answers Python programming q
 
 - `LangChain`, `LangGraph`
 - `Elasticsearch`
-- `OpenAI / Local LLM`
+- `API LLM Groq`
 - `Streamlit`
 - `Python`
 
