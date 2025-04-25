@@ -39,4 +39,4 @@ streamlit run main.py
 ```
 
 ## 📸 Demo app
-![Alt text](https://imgur.com/ioboOQs)
+![Chat History](images/demo.png)
